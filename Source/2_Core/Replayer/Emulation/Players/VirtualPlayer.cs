@@ -1,6 +1,7 @@
 ﻿using BeatLeader.Models;
 using BeatLeader.Models.AbstractReplay;
 using BeatLeader.Utils;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
@@ -17,6 +18,8 @@ namespace BeatLeader.Replayer.Emulation {
         }
 
         [Inject] private readonly IBeatmapTimeController _beatmapTimeController = null!;
+        [Inject] private readonly MenuControllersManager _menuControllersMan = null!;
+        private ViewableCameraController _cameraController = null!;
 
         public IReplay? Replay { get; private set; }
         public IVRControllersProvider? ControllersProvider { get; private set; }
@@ -27,13 +30,33 @@ namespace BeatLeader.Replayer.Emulation {
         private LinkedList<PlayerMovementFrame>? _frames;
         private bool _allowPlayback;
 
+        public float lerpMultiplier = 0.0f;
+
         public void Init(IReplay replay, IVRControllersProvider provider) {
-            Replay = replay;
+             Replay = replay;
             ControllersProvider = provider;
             _frames = new(replay.PlayerMovementFrames);
             _lastProcessedNode = _frames.First;
             _allowPlayback = true;
             gameObject.SetActive(true);
+        }
+
+        private SerializablePose Ctrl2Pose(VRController c) {
+            return new SerializablePose(
+                new SerializableVector3(c.position),
+                new SerializableQuaternion(c.rotation)
+            );
+        }
+
+        private SerializablePose PoseInverse(SerializablePose p, Vector3 pos, Quaternion rot) {
+            return new SerializablePose(
+                p.position - pos,
+                p.rotation * Quaternion.Inverse(rot)
+            );
+        }
+
+        internal void SetCameraController(ViewableCameraController cameraController) {
+            _cameraController = cameraController;
         }
 
         private void PlayFrame(LinkedListNode<PlayerMovementFrame>? frame) {
@@ -54,6 +77,20 @@ namespace BeatLeader.Replayer.Emulation {
                 rightSaberPose = rightSaberPose.Lerp(nextFrame.rightHandPose, t);
                 headPose = headPose.Lerp(nextFrame.headPose, t);
             }
+
+            var offsetPos = Vector3.zero;
+            var offsetRot = Quaternion.identity;
+            if (_cameraController != null && _cameraController.SelectedView != null) {
+                offsetPos = _cameraController.CameraContainer.position;
+                offsetRot = _cameraController.CameraContainer.rotation;
+            }
+
+            // share control between replay and menu controllers / real hands
+            var ctrlRH = PoseInverse(Ctrl2Pose(_menuControllersMan.RightHand), offsetPos, offsetRot);
+            var ctrlLH = PoseInverse(Ctrl2Pose(_menuControllersMan.LeftHand), offsetPos, offsetRot);
+
+            rightSaberPose = rightSaberPose.Lerp(ctrlRH, lerpMultiplier);
+            leftSaberPose = leftSaberPose.Lerp(ctrlLH, lerpMultiplier);
 
             ControllersProvider!.LeftSaber.transform.SetLocalPose(leftSaberPose);
             ControllersProvider.RightSaber.transform.SetLocalPose(rightSaberPose);

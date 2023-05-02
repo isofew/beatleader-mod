@@ -37,6 +37,7 @@ namespace BeatLeader.Replayer {
             HandlePriorityPlayerChanged(_playersManager.PriorityPlayer!);
             transform.SetParent(_extraObjects.ReplayerCenterAdjust, false);
             _camera.enabled = true;
+            _playersManager.PriorityPlayer!.SetCameraController(_cameraController);
             _isInitialized = true;
         }
 

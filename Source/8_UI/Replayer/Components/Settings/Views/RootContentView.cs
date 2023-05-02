@@ -19,6 +19,9 @@ namespace BeatLeader.Components {
         [UIValue("speed-setting")]
         private SpeedSetting _speedSetting = null!;
 
+        [UIValue("lerp-setting")]
+        private LerpSetting _lerpSetting = null!;
+
         [UIValue("layout-editor-setting")]
         private LayoutEditorSetting _layoutEditorSetting = null!;
 
@@ -37,6 +40,7 @@ namespace BeatLeader.Components {
             IReplayTimeline? timeline = null,
             LayoutEditor? layoutEditor = null) {
             _speedSetting.Setup(timeController);
+            _lerpSetting.Setup(playersManager);
             _layoutEditorSetting.Setup(layoutEditor, pauseController);
             _otherContentView.Setup(playersManager, launchData, watermark, timeline);
             var useExternalCamera = launchData.Settings
@@ -50,6 +54,7 @@ namespace BeatLeader.Components {
         protected override void OnInstantiate() {
             _horizontalSeparator = Instantiate<HorizontalSeparator>(transform);
             _speedSetting = Instantiate<SpeedSetting>(transform);
+            _lerpSetting = Instantiate<LerpSetting>(transform);
             _layoutEditorSetting = Instantiate<LayoutEditorSetting>(transform);
             _otherMenuButton = Instantiate<NavigationButton>(transform);
             _horizontalSeparator.SeparatorHeight = InputUtils.IsInFPFC ? 10 : 17;
